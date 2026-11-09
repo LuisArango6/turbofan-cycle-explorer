@@ -222,12 +222,15 @@ function renderResults(cycle) {
   const tsfc = u('tsfc', r.tsfc);
   const st = u('specificThrust', r.specificThrust);
   const eta0 = cycle.inputs.mach > 0 ? formatNumber(r.eta0 * 100, 1) : '—';
+  const sr = u('specificRange', r.specificRange);
+  const srText = cycle.inputs.mach > 0 ? sr.text : '—';
   el.innerHTML = `
     <div class="metrics">
       <div class="metric"><span class="metric-label">Net thrust</span><span class="metric-value">${F.text}<span class="unit">${F.unit}</span></span></div>
       <div class="metric"><span class="metric-label">Specific thrust</span><span class="metric-value">${st.text}<span class="unit">${st.unit}</span></span></div>
       <div class="metric"><span class="metric-label">TSFC</span><span class="metric-value">${tsfc.text}<span class="unit">${tsfc.unit}</span></span></div>
       <div class="metric"><span class="metric-label">Overall efficiency η<sub>0</sub></span><span class="metric-value">${eta0}<span class="unit">%</span></span></div>
+      <div class="metric metric-wide"><span class="metric-label">Specific range, with two engines</span><span class="metric-value">${srText}<span class="unit">${sr.unit}</span></span></div>
     </div>
     <div class="eff-split" aria-label="Overall efficiency split">
       <span class="eff-term"><span class="eff-sym">η<sub>0</sub></span><span class="num">${eta0}%</span></span>
@@ -274,11 +277,6 @@ function renderResults(cycle) {
       ${row('Fan exit area', 'area', r.nozzles.fan.area, undefined, 'A<sub>19</sub>')}
       ${textRow('Core nozzle', r.nozzles.core.choked ? '<span class="pill pill-choked">choked</span>' : '<span class="pill">not choked</span>')}
       ${row('Core exit area', 'area', r.nozzles.core.area, undefined, 'A<sub>9</sub>')}
-    </dl>
-
-    <h3>Mission</h3>
-    <dl class="kv-list">
-      ${row('Specific range, twin-engine', 'specificRange', r.specificRange)}
     </dl>`;
 }
 

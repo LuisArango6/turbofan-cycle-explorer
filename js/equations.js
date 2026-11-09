@@ -282,7 +282,7 @@ export const TEMPLATES = {
       etaTh: { label: 'Thermal efficiency: jet kinetic energy over fuel energy', eq: '\\eta_{th} = \\frac{\\Delta\\dot{KE}}{\\dot m_f\\,LHV}', sub: (v) => `\\frac{${n(v.dKE, 0)}}{(${n(v.mdotFuel, 4)})(${n(v.LHV, 0)})}` },
       etaP: { label: 'Propulsive efficiency: useful thrust power over jet kinetic energy', eq: '\\eta_p = \\frac{F\\,C_0}{\\Delta\\dot{KE}} \\qquad \\eta_0 = \\eta_{th}\\,\\eta_p', sub: (v) => `\\frac{(${n(v.F, 0)})(${n(v.C0)})}{${n(v.dKE, 0)}}` },
       specificRange: {
-        label: 'Specific range of a twin-engine aircraft (Jet A at 3.103 kg/gal)',
+        label: 'Specific range with two engines (Jet A at 3.103 kg/gal)',
         eq: 'SR = \\frac{C_0}{2\\,\\dot m_f}\\cdot\\rho_{fuel}',
         sub: (v) => `\\frac{${n(v.C0 / 1000, 5)}\\ \\text{km/s}}{2\\times${n(v.mdotFuel, 4)}\\ \\text{kg/s}}\\times${n(v.kgPerGal, 3)}\\ \\text{kg/gal}`,
       },

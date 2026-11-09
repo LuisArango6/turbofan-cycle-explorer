@@ -44,7 +44,7 @@ A side drawer lists every calculation by component. Each step shows the equation
 ### Diagrams and trade studies
 - **T-s diagram** of the core and bypass streams, with the total-pressure isobars at each station.
 - **Trade study**: sweep one input (BPR, TiT, FPR, π<sub>IPC</sub>, π<sub>HPC</sub>, bleed, altitude or Mach) and plot TSFC, net thrust, specific thrust, η₀, η<sub>th</sub> or η<sub>p</sub>. Points where the cycle cannot close are shaded as an infeasible region instead of being plotted.
-- **Results**: net thrust split into its fan, core and pressure-thrust parts, mass flows, fuel flow, OPR, TSFC, specific thrust, spool powers and overall efficiency split into **η₀ = η<sub>th</sub> × η<sub>p</sub>**.
+- **Results**: net thrust split into its fan, core and pressure-thrust parts, mass flows, fuel flow, OPR, TSFC, specific thrust, specific range with two engines (km/gal), spool powers and overall efficiency split into **η₀ = η<sub>th</sub> × η<sub>p</sub>**.
 - **Take-off** and **Cruise** presets; the active one is highlighted. All values are in SI units. The app state is kept in the URL, so a link brings back the same case.
 
 <p align="center">
