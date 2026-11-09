@@ -4,7 +4,7 @@ An interactive, in-browser thermodynamic analysis of a **three-spool, separate-f
 
 Change an input and the whole cycle is solved again at once. The 3D cutaway shows how the air's temperature and pressure change from the intake to the nozzles, and every number has its full calculation (equation, substituted values, result) one click away.
 
-**Live demo:** coming soon
+**Live demo:** [luisarango6.github.io/turbofan-cycle-explorer](https://luisarango6.github.io/turbofan-cycle-explorer/)
 
 <p align="center">
   <img src="docs/tour.webp" alt="Guided tour through the engine, with the three spools turning">
