@@ -1,0 +1,11 @@
+{
+  "name": "turbofan-cycle-explorer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Design-point thermodynamic analysis of a three-spool, separate-flow turbofan",
+  "type": "module",
+  "scripts": {
+    "start": "node serve.mjs",
+    "test": "node --test"
+  }
+}

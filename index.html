@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Turbofan Cycle Explorer</title>
+  <meta name="description" content="Design-point thermodynamic cycle of a three-spool, separate-flow turbofan, with every calculation step shown.">
+  <meta name="theme-color" content="#1d5fa8">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <!-- link preview (LinkedIn, WhatsApp, X…): the image needs the absolute address where the site is published -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Turbofan Cycle Explorer">
+  <meta property="og:description" content="Interactive 3D cycle analysis of a three-spool turbofan (Rolls-Royce Trent 1000 data), with every calculation step shown.">
+  <meta property="og:url" content="https://luisarango6.github.io/turbofan-cycle-explorer/">
+  <meta property="og:image" content="https://luisarango6.github.io/turbofan-cycle-explorer/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Cutaway 3D view of a three-spool turbofan with the airflow coloured by temperature">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="vendor/katex/katex.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <script defer src="vendor/katex/katex.min.js"></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>Turbofan Cycle Explorer</h1>
+      <p>Three-spool, separate-flow turbofan · design-point cycle · Rolls-Royce Trent 1000 defaults</p>
+    </div>
+    <div class="toolbar" role="toolbar" aria-label="Flight condition">
+      <div class="button-group" aria-label="Flight condition presets">
+        <button type="button" class="btn" data-preset="takeoff">Take-off</button>
+        <button type="button" class="btn" data-preset="cruise">Cruise</button>
+        <button type="button" class="btn btn-quiet" id="reset">Reset to Trent 1000</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel inputs-panel" aria-labelledby="inputs-title">
+      <h2 id="inputs-title" class="panel-title">Inputs</h2>
+      <form id="inputs" autocomplete="off" novalidate></form>
+    </aside>
+
+    <section class="center" aria-label="Engine">
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+      <section class="card engine-card" aria-labelledby="engine-title">
+        <div class="card-head engine-head">
+          <h2 id="engine-title" class="panel-title">Engine</h2>
+          <div class="engine-tools" role="toolbar" aria-label="3D view options">
+            <button type="button" class="chip" data-view="cutaway" aria-pressed="true">Cutaway</button>
+            <button type="button" class="chip" data-view="exploded" aria-pressed="false">Exploded</button>
+            <button type="button" class="chip" data-view="flow" aria-pressed="true">Airflow</button>
+            <div class="segmented segmented-sm" role="radiogroup" aria-label="Colour the airflow by">
+              <button type="button" role="radio" aria-checked="true" data-color="T">T</button>
+              <button type="button" role="radio" aria-checked="false" data-color="P">p</button>
+            </div>
+            <button type="button" class="chip" data-view="stations" aria-pressed="true">Stations</button>
+            <button type="button" class="chip" data-view="spin" aria-pressed="true" title="Rotors turn 750 times slower than the real Trent 1000 speeds, keeping their ratio">Rotation</button>
+            <button type="button" class="chip" data-view="spools" aria-pressed="false" title="Colour the rotating parts by spool: LP blue, IP green, HP red">Spools</button>
+            <button type="button" class="btn btn-sm" id="tour-start">Guided tour</button>
+            <button type="button" class="btn btn-quiet btn-sm" id="view-core">Core close-up</button>
+            <button type="button" class="btn btn-quiet btn-sm" id="view-reset">Whole engine</button>
+            <button type="button" class="btn btn-primary btn-sm" id="open-calc" aria-controls="calc-drawer" aria-expanded="false">Calculation steps</button>
+          </div>
+        </div>
+        <div id="engine-view" class="engine-view">
+          <div class="engine-corner">
+            <button type="button" class="engine-corner-btn engine-tour-btn" id="tour-start-3d" title="Follow the air through the engine, stop by stop (← → to move, Esc to end)">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 5l8 5-8 5z"/></svg>
+              <span>Guided tour</span>
+            </button>
+          <button type="button" class="engine-corner-btn engine-expand" id="engine-expand" aria-pressed="false" title="Full screen (Esc to exit)">
+              <svg class="icon-expand" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8V3h5M12 3h5v5M17 12v5h-5M8 17H3v-5"/></svg>
+              <svg class="icon-collapse" viewBox="0 0 20 20" aria-hidden="true"><path d="M8 3v5H3M17 8h-5V3M12 17v-5h5M3 12h5v5"/></svg>
+              <span class="engine-expand-label">Full screen</span>
+            </button>
+          </div>
+          <div class="tour" id="tour" hidden role="region" aria-label="Guided tour" aria-live="polite">
+            <div class="tour-head"><span class="tour-count" id="tour-count"></span><button type="button" class="tour-close" id="tour-close" aria-label="End the tour">×</button></div>
+            <h3 class="tour-title" id="tour-title"></h3>
+            <p class="tour-text" id="tour-text"></p>
+            <div class="tour-nav">
+              <button type="button" class="btn btn-sm" id="tour-prev">← Back</button>
+              <div class="tour-dots" id="tour-dots" aria-hidden="true"></div>
+              <button type="button" class="btn btn-primary btn-sm" id="tour-next">Next →</button>
+            </div>
+          </div>
+          <div class="engine-hint" id="engine-hint" role="status" hidden>
+            <span class="engine-hint-text"><b>Drag</b> to rotate · <b>Scroll</b> to zoom · <b>Click a part</b> for its calculation</span>
+            <button type="button" class="engine-hint-close" aria-label="Dismiss the hint">×</button>
+          </div>
+        </div>
+        <p class="card-note engine-note">Drag to rotate, scroll or pinch to zoom, select a part for its key values. Particle colours are calculated values; their speed is illustrative, and the core is drawn denser than its real share of the flow (1 part in BPR + 1). Rotors turn 750 times slower than the Trent 1000 shaft speeds (LP 2,683, IP 8,937, HP 13,391 rpm), keeping their ratio. Stylised geometry, not manufacturer data.</p>
+      </section>
+    </section>
+
+    <div class="side">
+      <section class="panel ts-panel" aria-labelledby="ts-title">
+        <h2 id="ts-title" class="panel-title">T-s diagram</h2>
+        <ul class="ts-legend" aria-label="Legend">
+          <li><span class="sw sw-air"></span>Core air</li>
+          <li><span class="sw sw-burn"></span>Combustion</li>
+          <li><span class="sw sw-gas"></span>Hot gas</li>
+          <li><span class="sw sw-bypass"></span>Bypass</li>
+        </ul>
+        <div id="ts" class="ts-wrap"></div>
+        <p class="card-note ts-note">Total states 02 to 07; 0, 19 and 9 are static. Entropy from ambient air (c<sub>pa</sub> for air, c<sub>pg</sub> for gas).</p>
+      </section>
+      <section class="panel sweep-panel" aria-labelledby="sweep-title">
+        <h2 id="sweep-title" class="panel-title">Trade study</h2>
+        <div class="sweep-controls">
+          <label for="sweep-y">Plot</label>
+          <select id="sweep-y"></select>
+          <label for="sweep-x">against</label>
+          <select id="sweep-x"></select>
+        </div>
+        <div id="sweep" class="sweep-wrap"></div>
+        <p class="card-note sweep-note">Every other input keeps its current value; the dot is the current design. Shaded: the turbines cannot drive the fan and compressors, so the cycle does not close. Select a point on the curve to use that value.</p>
+      </section>
+      <section class="panel results-panel" aria-labelledby="results-title">
+        <h2 id="results-title" class="panel-title">Results</h2>
+        <div id="results"></div>
+      </section>
+    </div>
+  </main>
+
+  <aside id="calc-drawer" class="drawer" aria-labelledby="drawer-title" hidden>
+    <header class="drawer-head">
+      <h2 id="drawer-title">Calculation</h2>
+      <div class="segmented" role="tablist" aria-label="Calculation views">
+        <button type="button" role="tab" id="tab-steps" aria-selected="true" aria-controls="pane-steps">Steps</button>
+        <button type="button" role="tab" id="tab-stations" aria-selected="false" aria-controls="pane-stations">Stations</button>
+      </div>
+      <button type="button" class="drawer-close" id="close-calc" aria-label="Close the calculation panel">×</button>
+    </header>
+    <div class="drawer-body">
+      <section id="pane-steps" role="tabpanel" aria-labelledby="tab-steps">
+        <p class="card-note drawer-note">Each equation, then the same equation with the current numbers. Equations are in SI units.</p>
+        <nav id="component-tabs" class="component-tabs" aria-label="Components in flow order"></nav>
+        <div id="math-panel" class="math-panel" aria-live="polite"></div>
+      </section>
+      <section id="pane-stations" role="tabpanel" aria-labelledby="tab-stations" hidden>
+        <p class="card-note drawer-note">Total (0) and static properties along the core and the bypass; numbering after El-Sayed (2017). Markers: <span class="legend-air">blue = air</span>, <span class="legend-gas">orange = hot gas</span>. Select a station number to see its calculation.</p>
+        <div class="table-wrap">
+          <table id="stations" class="data-table"></table>
+        </div>
+      </section>
+    </div>
+  </aside>
+
+  <footer class="footer">
+    <p>Design-point model: two constant specific heats (air at ambient temperature, hot gas c<sub>pg</sub> = 1148 J/kg·K), ISA atmosphere, convergent nozzles, bleed ratio as an input. Engine data from a university thermal-engines course problem; not manufacturer data.</p>
+  </footer>
+</body>
+</html>
