@@ -24,6 +24,7 @@ export const SWEEP_Y = {
   eta0: { label: 'Overall efficiency η₀', q: 'percent', get: (r) => r.eta0 },
   etaTh: { label: 'Thermal efficiency η_th', q: 'percent', get: (r) => r.etaTh },
   etaP: { label: 'Propulsive efficiency η_p', q: 'percent', get: (r) => r.etaP },
+  specificRange: { label: 'Specific range, with two engines', q: 'specificRange', get: (r) => r.specificRange },
 };
 
 /**

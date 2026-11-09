@@ -35,3 +35,11 @@ test('bands handle all-feasible and all-infeasible sweeps', () => {
   assert.deepEqual(infeasibleBands([{ x: 0, feasible: true }, { x: 1, feasible: true }]), []);
   assert.deepEqual(infeasibleBands([{ x: 0, feasible: false }, { x: 1, feasible: false }]), [[0, 1]]);
 });
+
+test('specific range can be plotted and matches a single run', () => {
+  const pts = sweep(DEFAULT_INPUTS, 'altitude', 'specificRange', 7);
+  for (const p of pts.filter((q) => q.feasible)) {
+    const c = runCycle({ ...DEFAULT_INPUTS, altitude: p.x });
+    assert.ok(Math.abs(p.y - c.results.specificRange) <= 1e-12 * Math.max(1, Math.abs(p.y)));
+  }
+});
