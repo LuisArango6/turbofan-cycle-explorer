@@ -114,30 +114,42 @@ function mergeTwo(a, b) {
 }
 
 /**
- * A twisted, cambered blade with thickness, in its local frame: span along +y, axial along +x,
- * tangential along z. Each section is a closed airfoil-like loop; tip and root are capped.
+ * A twisted, cambered aerofoil blade in its local frame: span along +y, axial along +x, tangential
+ * along z (the rotors spin towards +z at the top). Each section is a NACA-style aerofoil: rounded
+ * leading edge, thin trailing edge and a parabolic camber line with its peak at `maxAt` of the chord.
+ * `camber` is the peak camber as a fraction of chord, `thick` the maximum thickness as a fraction of
+ * chord, `stagger` the chord angle from the axis. `hand` = -1 mirrors the camber, so the leading edge
+ * is turned less than the trailing edge (turbine nozzle vanes, rotors spinning towards +z).
+ * Thickness and camber taper towards the tip, as on real blades.
  */
-function bladeGeometry({ rHub, rTip, chordHub, chordTip, staggerHub, staggerTip, sweep = 0, camber = 0.08, thick = 0.08, sections = 6 }) {
-  const n = 6;                                    // points per side of the section
+function bladeGeometry({ rHub, rTip, chordHub, chordTip, staggerHub, staggerTip, sweep = 0, camber = 0.08, thick = 0.08,
+  sections = 6, maxAt = 0.45, hand = 1, tipThin = 0.4, tipCamber = 0.25 }) {
+  const n = 9;                                    // points per surface, cosine-spaced (dense at the edges)
+  const loop = 2 * n - 2;                         // leading and trailing edge points shared by both surfaces
   const pos = [], idx = [];
-  const loop = 2 * n;
+  const p = Math.min(0.8, Math.max(0.2, maxAt));
   for (let j = 0; j <= sections; j++) {
     const t = j / sections;
     const r = rHub + (rTip - rHub) * t;
     const c = chordHub + (chordTip - chordHub) * t;
     const b = staggerHub + (staggerTip - staggerHub) * t;
+    const m = camber * (1 - tipCamber * t) * hand;
+    const tk = thick * (1 - tipThin * t);
     const xc = sweep * t * t;
-    const th = thick * c * (1 - 0.45 * t);       // thinner towards the tip
-    for (let side = 0; side < 2; side++) {
-      for (let k = 0; k < n; k++) {
-        const u0 = k / (n - 1);
-        const u = side === 0 ? u0 : 1 - u0;       // go along one side and back along the other
-        const s = u - 0.5;
-        const bow = camber * c * (1 - 4 * s * s);
-        const half = th * 0.5 * Math.sin(Math.PI * Math.min(1, u * 1.1 + 0.02)) * (side === 0 ? 1 : -1);
-        const ax = s * c, tg = bow + half;
-        pos.push(xc + ax * Math.cos(b) - tg * Math.sin(b), r, ax * Math.sin(b) + tg * Math.cos(b));
-      }
+    const upper = [], lower = [];
+    for (let k = 0; k < n; k++) {
+      const x = (1 - Math.cos((Math.PI * k) / (n - 1))) / 2;
+      const yt = 5 * tk * (0.2969 * Math.sqrt(x) - 0.126 * x - 0.3516 * x * x + 0.2843 * x ** 3 - 0.1036 * x ** 4);
+      const yc = x < p ? (m / (p * p)) * (2 * p * x - x * x) : (m / ((1 - p) ** 2)) * (1 - 2 * p + 2 * p * x - x * x);
+      const dy = x < p ? ((2 * m) / (p * p)) * (p - x) : ((2 * m) / ((1 - p) ** 2)) * (p - x);
+      const th = Math.atan(dy);
+      upper.push([x - yt * Math.sin(th), yc + yt * Math.cos(th)]);
+      lower.push([x + yt * Math.sin(th), yc - yt * Math.cos(th)]);
+    }
+    const ring = [...upper, ...lower.slice(1, n - 1).reverse()];
+    for (const [ux, uy] of ring) {
+      const ax = (ux - 0.5) * c, tg = uy * c;
+      pos.push(xc + ax * Math.cos(b) - tg * Math.sin(b), r, ax * Math.sin(b) + tg * Math.cos(b));
     }
   }
   for (let j = 0; j < sections; j++) {
@@ -146,8 +158,15 @@ function bladeGeometry({ rHub, rTip, chordHub, chordTip, staggerHub, staggerTip,
       idx.push(a, a + loop, a2, a2, a + loop, a2 + loop);
     }
   }
-  // caps (fan around the first point of the loop)
-  for (const j of [0, sections]) for (let k = 1; k < loop - 1; k++) idx.push(j * loop, j * loop + k, j * loop + k + 1);
+  // root and tip caps: strips across the section, upper point k to lower point k
+  const low = (k) => (k === 0 ? 0 : k === n - 1 ? n - 1 : loop - k);
+  for (const j of [0, sections]) {
+    const o = j * loop, flip = j === 0;
+    for (let k = 0; k < n - 1; k++) {
+      const u0 = o + k, u1 = o + k + 1, l0 = o + low(k), l1 = o + low(k + 1);
+      if (flip) idx.push(u0, l1, u1, u0, l0, l1); else idx.push(u0, u1, l1, u0, l1, l0);
+    }
+  }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setIndex(idx);
@@ -239,8 +258,8 @@ export function buildEngine() {
   add(shells, lathe([[0.78, 4.10], [0.70, 4.50], [0.62, 4.80], [0.60, 4.80], [0.68, 4.60], [0.72, 4.47]]), mat.cowl, { component: 'coreNozzle' });
 
   // outlet guide vanes in the bypass duct and the engine section stators at the core inlet
-  add(shells, bladeGeometry({ rHub: 0.92, rTip: 1.43, chordHub: 0.22, chordTip: 0.24, staggerHub: -0.25, staggerTip: -0.2, camber: 0.06, thick: 0.1, sections: 4 }), mat.ogv, { component: 'fanNozzle', instances: 48, x: 2.02 });
-  add(shells, bladeGeometry({ rHub: 0.45, rTip: 0.74, chordHub: 0.10, chordTip: 0.10, staggerHub: -0.3, staggerTip: -0.25, camber: 0.08, thick: 0.1, sections: 3 }), mat.stator, { component: 'ipc', instances: 40, x: 1.56 });
+  add(shells, bladeGeometry({ rHub: 0.92, rTip: 1.43, chordHub: 0.22, chordTip: 0.24, staggerHub: 0.3, staggerTip: 0.25, camber: 0.07, thick: 0.08, sections: 4, maxAt: 0.4, tipThin: 0, tipCamber: 0 }), mat.ogv, { component: 'fanNozzle', instances: 48, x: 2.02 });
+  add(shells, bladeGeometry({ rHub: 0.45, rTip: 0.74, chordHub: 0.10, chordTip: 0.10, staggerHub: 0.2, staggerTip: 0.2, camber: 0.04, thick: 0.10, sections: 3, tipThin: 0, tipCamber: 0 }), mat.stator, { component: 'ipc', instances: 40, x: 1.56 });
 
   // core casing: a shell just outside the gas path, with flanges at module joints
   const casePts = CORE_PATH.map(([x, , ro]) => [ro + 0.012, x]);
@@ -303,7 +322,7 @@ export function buildEngine() {
   // ================================================================ fan (LP)
   const fan = mod('fan', -1.3);
   add(fan, lathe([[0.0, 0.42], [0.10, 0.48], [0.26, 0.66], [0.38, 0.86], [0.45, 1.05], [0.45, 1.25]]), mat.spinner, { component: 'fan', spool: 'LP' });
-  add(fan, bladeGeometry({ rHub: 0.44, rTip: 1.415, chordHub: 0.36, chordTip: 0.52, staggerHub: 0.35, staggerTip: 1.05, sweep: 0.12, camber: 0.07, thick: 0.06, sections: 14 }), mat.fan, { component: 'fan', spool: 'LP', instances: 20, x: 1.03 });
+  add(fan, bladeGeometry({ rHub: 0.44, rTip: 1.415, chordHub: 0.36, chordTip: 0.52, staggerHub: -0.35, staggerTip: -1.05, sweep: 0.12, camber: 0.07, thick: 0.08, sections: 14, hand: -1, maxAt: 0.5, tipThin: 0.6, tipCamber: 0.6 }), mat.fan, { component: 'fan', spool: 'LP', instances: 20, x: 1.03 });
   add(fan, disc(1.06, 0.14, 0.44, 0.30, { boreH: 0.05, rimH: 0.05 }), mat.disc, { component: 'fan', spool: 'LP' });
   add(fan, lathe([[0.10, 1.10], [0.30, 1.22], [0.44, 1.26]]), mat.disc, { component: 'fan', spool: 'LP' }); // fan disc cone to the shaft
 
@@ -321,16 +340,32 @@ export function buildEngine() {
       const chord = pitch * 0.34;
       // rotor
       let [rh, ro] = coreAt(xr);
-      add(group, bladeGeometry({ rHub: rh, rTip: ro - 0.006, chordHub: chord, chordTip: chord * 0.85, staggerHub: o.stagger * 0.75, staggerTip: o.stagger * 1.1,
-        camber: o.turbine ? 0.2 : 0.1, thick: o.turbine ? 0.22 : 0.09, sections: 4 }), o.rotorMat, { component: o.component, spool: o.spool, instances: o.rotorCount + s * (o.countStep ?? 0), x: xr });
+      // rotor blades. Compressor: thin, lightly cambered, twisted towards the tip. Turbine: thick,
+      // highly cambered (about 100° of turning), little twist.
+      const rot = o.turbine
+        ? { staggerHub: -0.22, staggerTip: -0.42, camber: 0.24, thick: 0.24, maxAt: 0.35, hand: 1, tipThin: 0.35, tipCamber: 0.2 }
+        : { staggerHub: -o.stagger * 0.7, staggerTip: -o.stagger * 1.15, camber: 0.09, thick: 0.09, maxAt: 0.45, hand: -1, tipThin: 0.45, tipCamber: 0.35 };
+      const tip = o.turbine && o.shroud ? ro - 0.009 : ro - 0.006;
+      add(group, bladeGeometry({ rHub: rh, rTip: tip, chordHub: chord, chordTip: chord * (o.turbine ? 0.95 : 0.85), sections: o.turbine ? 4 : 5, ...rot }),
+        o.rotorMat, { component: o.component, spool: o.spool, instances: o.rotorCount + s * (o.countStep ?? 0), x: xr });
       add(group, ring(rh - 0.012, rh, xr - chord * 0.6, xr + chord * 0.6), o.discMat, { component: o.component, spool: o.spool });     // platform
-      if (o.turbine && o.shroud) add(group, ring(ro - 0.006, ro + 0.006, xr - chord * 0.55, xr + chord * 0.55), o.rotorMat, { component: o.component, spool: o.spool }); // tip shroud
+      if (o.turbine && o.shroud) {
+        // tip shroud: the blade tips' platforms lock together into a thin band, with two seal fins
+        // running against the casing liner
+        add(group, ring(tip, tip + 0.004, xr - chord * 0.5, xr + chord * 0.5), o.rotorMat, { component: o.component, spool: o.spool });
+        for (const f of [-0.28, 0.22]) add(group, ring(tip + 0.004, ro + 0.006, xr + chord * f - 0.002, xr + chord * f + 0.002), o.rotorMat, { component: o.component, spool: o.spool });
+      }
       add(group, disc(xr, o.bore, rh - 0.012, chord * 1.1, { boreW: chord * (o.turbine ? 1.3 : 0.9), webW: chord * 0.3, boreH: o.turbine ? 0.05 : 0.03 }), o.discMat, { component: o.component, spool: o.spool });
       discXs.push([xr, rh - 0.012]);
       // stator
       [rh, ro] = coreAt(xs);
-      add(group, bladeGeometry({ rHub: rh + 0.01, rTip: ro, chordHub: chord * 0.9, chordTip: chord * 0.95, staggerHub: -o.stagger * 0.7, staggerTip: -o.stagger * 0.8,
-        camber: o.turbine ? 0.22 : 0.1, thick: o.turbine ? 0.2 : 0.08, sections: 3 }), o.statorMat, { component: o.component, instances: o.statorCount, x: xs });
+      // stator vanes. Compressor: take the swirl out (lean opposite to the rotor). Turbine nozzle
+      // guide vanes: thick, turn the axial flow towards the direction of rotation.
+      const sta = o.turbine
+        ? { staggerHub: 0.8, staggerTip: 0.85, camber: 0.2, thick: 0.22, maxAt: 0.6, hand: -1, tipThin: 0, tipCamber: 0 }
+        : { staggerHub: 0.42, staggerTip: 0.48, camber: 0.1, thick: 0.09, maxAt: 0.45, hand: 1, tipThin: 0.15, tipCamber: 0 };
+      add(group, bladeGeometry({ rHub: rh + 0.01, rTip: ro, chordHub: chord * 0.9, chordTip: chord * 0.95, sections: 3, ...sta }),
+        o.statorMat, { component: o.component, instances: o.statorCount, x: xs });
       add(group, ring(rh - 0.004, rh + 0.012, xs - chord * 0.55, xs + chord * 0.55), o.statorMat, { component: o.component }); // inner shroud
     }
     // drum: spacer cones joining the disc rims, so the rotor reads as one assembly
@@ -385,7 +420,7 @@ export function buildEngine() {
   stages(lpt, { component: 'lpt', spool: 'LP', x0: 3.97, x1: 4.46, n: 6, rotorCount: 96, countStep: 4, statorCount: 104, rotorMat: mat.lpt, statorMat: mat.lpt, discMat: mat.turbineDisc, bore: 0.12, stagger: 1.05, turbine: true, shroud: true, drum: true });
   add(lpt, lathe([[0.10, 4.58], [0.20, 4.50], [0.30, 4.42]]), mat.turbineDisc, { component: 'lpt', spool: 'LP' });
   // tail bearing housing struts
-  add(lpt, bladeGeometry({ rHub: 0.37, rTip: 0.69, chordHub: 0.09, chordTip: 0.09, staggerHub: 0, staggerTip: 0, camber: 0, thick: 0.25, sections: 2 }), mat.casing, { component: 'jetPipe', instances: 14, x: 4.54 });
+  add(lpt, bladeGeometry({ rHub: 0.37, rTip: 0.69, chordHub: 0.09, chordTip: 0.09, staggerHub: 0, staggerTip: 0, camber: 0, thick: 0.22, sections: 2, tipThin: 0 }), mat.casing, { component: 'jetPipe', instances: 14, x: 4.54 });
 
   // ---- core nozzle: tail plug
   const noz = mod('nozzle', 2.1);
