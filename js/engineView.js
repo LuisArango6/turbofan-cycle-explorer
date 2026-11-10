@@ -13,6 +13,8 @@ import { convert, formatNumber } from './units.js';
 // Trent 1000 rotor speeds (N1, N2, N3) in rpm. The view keeps their ratio and slows them down
 // SPIN_SLOWDOWN times so the blades can be followed by eye (LP ≈ 3.6 rpm on screen).
 export const SPOOL_RPM = { LP: 2683, IP: 8937, HP: 13391 };
+/** Direction of rotation: in the Trent 1000 the HP spool turns the opposite way to the IP and LP spools. */
+export const SPOOL_DIR = { LP: 1, IP: 1, HP: -1 };
 export const SPIN_SLOWDOWN = 750;
 
 // ---------------------------------------------------------------- colour scale (sequential, cold → hot)
@@ -555,7 +557,7 @@ export class EngineView {
     this.points.visible = this.explode < 0.3;
     if (this.state.spin) {
       for (const sp of ['LP', 'IP', 'HP']) this.spinAngle[sp] = (this.spinAngle[sp] + ((SPOOL_RPM[sp] / SPIN_SLOWDOWN) / 60) * 2 * Math.PI * dt) % (2 * Math.PI);
-      for (const o of this.rotors) o.rotation.x = this.spinAngle[o.userData.spool];
+      for (const o of this.rotors) o.rotation.x = SPOOL_DIR[o.userData.spool] * this.spinAngle[o.userData.spool];
     }
     if (this.state.flow) this.stepFlow(dt);
     if (this.anim) {

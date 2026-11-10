@@ -25,7 +25,7 @@ As a mechanical engineer, I remember a course from university, Thermal Machines,
 ### 3D engine
 - **Sectioned cutaway** of the static structure, with the rotors left whole so you can see the fan, the 8-stage IP compressor, the 6-stage HP compressor, the annular combustor and the HP, IP and LP turbines.
 - **Airflow particles** coloured by total temperature or total pressure, computed from the current cycle.
-- **Spool colouring and rotation.** The LP, IP and HP spools turn at the Trent 1000's real speed ratio, slowed 750× so you can follow them.
+- **Spool colouring and rotation.** The LP, IP and HP spools turn at the Trent 1000's real speed ratio, slowed 750× so you can follow them, with the HP spool turning the opposite way, as on the real engine.
 - **Exploded view**, station labels (0 → 9 / 19), core close-up and full-screen mode.
 - **Guided tour**: the camera follows the air through 11 stops. Each stop explains what that component does, using the numbers for the inputs you set.
 - Click any part to see its key values, then open the calculation behind them.

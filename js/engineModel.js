@@ -331,6 +331,11 @@ export function buildEngine() {
    * Rotor + stator stages between x0 and x1 following the core gas path.
    * Rotor: blades + platform band + disc (+ drum spacer to the next disc). Stator: vanes + inner shroud ring.
    */
+  /** A spool turning the other way has mirror-image blades: flip the stagger and the camber. */
+  function mirror(b, dir = 1) {
+    if (dir === -1) { b.staggerHub = -b.staggerHub; b.staggerTip = -b.staggerTip; b.hand = -b.hand; }
+    return b;
+  }
   function stages(group, o) {
     const pitch = (o.x1 - o.x0) / o.n;
     const discXs = [];
@@ -345,6 +350,7 @@ export function buildEngine() {
       const rot = o.turbine
         ? { staggerHub: -0.22, staggerTip: -0.42, camber: 0.24, thick: 0.24, maxAt: 0.35, hand: 1, tipThin: 0.35, tipCamber: 0.2 }
         : { staggerHub: -o.stagger * 0.7, staggerTip: -o.stagger * 1.15, camber: 0.09, thick: 0.09, maxAt: 0.45, hand: -1, tipThin: 0.45, tipCamber: 0.35 };
+      mirror(rot, o.dir);
       const tip = o.turbine && o.shroud ? ro - 0.009 : ro - 0.006;
       add(group, bladeGeometry({ rHub: rh, rTip: tip, chordHub: chord, chordTip: chord * (o.turbine ? 0.95 : 0.85), sections: o.turbine ? 4 : 5, ...rot }),
         o.rotorMat, { component: o.component, spool: o.spool, instances: o.rotorCount + s * (o.countStep ?? 0), x: xr });
@@ -362,8 +368,9 @@ export function buildEngine() {
       // stator vanes. Compressor: take the swirl out (lean opposite to the rotor). Turbine nozzle
       // guide vanes: thick, turn the axial flow towards the direction of rotation.
       const sta = o.turbine
-        ? { staggerHub: 0.8, staggerTip: 0.85, camber: 0.2, thick: 0.22, maxAt: 0.6, hand: -1, tipThin: 0, tipCamber: 0 }
+        ? { staggerHub: 0.8, staggerTip: 0.85, camber: 0.2, thick: 0.22, maxAt: 0.6, hand: -1, tipThin: 0, tipCamber: 0, ...o.ngv }
         : { staggerHub: 0.42, staggerTip: 0.48, camber: 0.1, thick: 0.09, maxAt: 0.45, hand: 1, tipThin: 0.15, tipCamber: 0 };
+      mirror(sta, o.dir);
       add(group, bladeGeometry({ rHub: rh + 0.01, rTip: ro, chordHub: chord * 0.9, chordTip: chord * 0.95, sections: 3, ...sta }),
         o.statorMat, { component: o.component, instances: o.statorCount, x: xs });
       add(group, ring(rh - 0.004, rh + 0.012, xs - chord * 0.55, xs + chord * 0.55), o.statorMat, { component: o.component }); // inner shroud
@@ -381,7 +388,7 @@ export function buildEngine() {
   add(ipc, lathe([[0.155, 1.62], [0.30, 1.66], [0.40, 1.70]]), mat.disc, { component: 'ipc', spool: 'IP' }); // drive cone to the IP shaft
 
   const hpc = mod('hpc', -0.15);
-  stages(hpc, { component: 'hpc', spool: 'HP', x0: 2.51, x1: 3.00, n: 6, rotorCount: 56, countStep: 4, statorCount: 74, rotorMat: mat.compressor, statorMat: mat.stator, discMat: mat.disc, bore: 0.23, stagger: 0.85 });
+  stages(hpc, { component: 'hpc', spool: 'HP', dir: -1, x0: 2.51, x1: 3.00, n: 6, rotorCount: 56, countStep: 4, statorCount: 74, rotorMat: mat.compressor, statorMat: mat.stator, discMat: mat.disc, bore: 0.23, stagger: 0.85 });
   add(hpc, lathe([[0.215, 2.48], [0.30, 2.52], [0.37, 2.55]]), mat.disc, { component: 'hpc', spool: 'HP' });
 
   // ---- combustor: annular liner with cooling bands, dome, fuel injectors
@@ -411,10 +418,10 @@ export function buildEngine() {
 
   // ---- turbines
   const hpt = mod('hpt', 0.75);
-  stages(hpt, { component: 'hpt', spool: 'HP', x0: 3.55, x1: 3.73, n: 1, rotorCount: 68, statorCount: 36, rotorMat: mat.hpt, statorMat: mat.hpt, discMat: mat.turbineDisc, bore: 0.23, stagger: 1.0, turbine: true });
+  stages(hpt, { component: 'hpt', spool: 'HP', dir: -1, x0: 3.55, x1: 3.73, n: 1, rotorCount: 68, statorCount: 36, rotorMat: mat.hpt, statorMat: mat.hpt, discMat: mat.turbineDisc, bore: 0.23, stagger: 1.0, turbine: true });
   add(hpt, lathe([[0.215, 3.76], [0.27, 3.70], [0.33, 3.67]]), mat.turbineDisc, { component: 'hpt', spool: 'HP' });
   const ipt = mod('ipt', 1.1);
-  stages(ipt, { component: 'ipt', spool: 'IP', x0: 3.74, x1: 3.94, n: 1, rotorCount: 72, statorCount: 40, rotorMat: mat.ipt, statorMat: mat.ipt, discMat: mat.turbineDisc, bore: 0.17, stagger: 1.0, turbine: true, shroud: true });
+  stages(ipt, { component: 'ipt', spool: 'IP', ngv: { camber: 0.12, staggerHub: 0.75, staggerTip: 0.8 }, x0: 3.74, x1: 3.94, n: 1, rotorCount: 72, statorCount: 40, rotorMat: mat.ipt, statorMat: mat.ipt, discMat: mat.turbineDisc, bore: 0.17, stagger: 1.0, turbine: true, shroud: true });
   add(ipt, lathe([[0.155, 3.97], [0.25, 3.90], [0.33, 3.87]]), mat.turbineDisc, { component: 'ipt', spool: 'IP' });
   const lpt = mod('lpt', 1.55);
   stages(lpt, { component: 'lpt', spool: 'LP', x0: 3.97, x1: 4.46, n: 6, rotorCount: 96, countStep: 4, statorCount: 104, rotorMat: mat.lpt, statorMat: mat.lpt, discMat: mat.turbineDisc, bore: 0.12, stagger: 1.05, turbine: true, shroud: true, drum: true });
